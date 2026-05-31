@@ -1,17 +1,19 @@
-import './globals.css';
-import { Inter } from 'next/font/google';
+import './globals.css'
+import type { Metadata } from 'next'
 
-const inter = Inter({ subsets: ['latin'] });
+export const metadata: Metadata = {
+  title: 'Nasi Ayam Haji Ali',
+  description: 'Sistem Tempahan Meja Profesional',
+}
 
-export const metadata = {
-  title: 'Booking | Nasi Ayam Haji Ali',
-  description: 'Sistem Tempahan Meja Nasi Ayam Haji Ali',
-};
-
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
     <html lang="ms">
-      <body className={inter.className}>{children}</body>
+      <body>{children}</body>
     </html>
-  );
+  )
 }
