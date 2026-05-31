@@ -2,24 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap');
+
 :root {
   --primary: #D62828;
-  --accent: #F4C542;
-  --bg: #FDFDFD;
 }
 
 body {
-  background-color: var(--bg);
-  color: #1a1a1a;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: #f8fafc;
 }
 
-.glass-card {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
 }
-
-.btn-primary {
-  @apply bg-[#D62828] text-white transition-all active:scale-95 disabled:opacity-50;
+::-webkit-scrollbar-thumb {
+  background: #e2e8f0;
+  border-radius: 10px;
 }
