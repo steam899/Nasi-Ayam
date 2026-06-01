@@ -34,7 +34,7 @@ export default function AdminDashboard() {
       if (!user) { router.push('/admin/login'); return; }
 
       const { data: prof } = await supabase.from('profiles').select('*, branches(name)').eq('id', user.id).maybeSingle();
-      if (!prof) { alert("Akaun anda tiada profil. Sila daftar di /admin/register"); return; }
+      if (!prof) { alert("Profil tidak dijumpai."); return; }
 
       setProfile(prof);
       await fetchData(prof);
@@ -42,7 +42,7 @@ export default function AdminDashboard() {
   }
 
   async function fetchData(prof: any) {
-    // 1. Ambil Tempahan
+    // 1. Ambil Tempahan (Tapis jika staf)
     let bQuery = supabase.from('bookings').select('*, branches(name)').order('created_at', { ascending: false });
     if (prof.role === 'staff') bQuery = bQuery.eq('branch_id', prof.branch_id);
     const { data: bData } = await bQuery;
@@ -57,16 +57,26 @@ export default function AdminDashboard() {
     }
   }
 
-  // --- TINDAKAN ---
+  // --- LOGIK STAFF & MASTER ---
   const handleCheckIn = async (id: string) => {
     await supabase.from('bookings').update({ status: 'checked_in' }).eq('id', id);
     fetchData(profile);
   };
 
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/admin/login');
+  };
+
+  // --- LOGIK KHAS MASTER (STAF MANAGEMENT) ---
   const handleAddStaff = async () => {
     if (!newStaff.email || !newStaff.password || !newStaff.branchId) return alert("Sila lengkapkan data staf!");
     setIsProcessing(true);
-    const res = await fetch('/api/admin/create-staff', { method: 'POST', body: JSON.stringify(newStaff) });
+    const res = await fetch('/api/admin/create-staff', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newStaff) 
+    });
     const result = await res.json();
     if (result.success) { alert("Staf Berjaya Didaftarkan!"); window.location.reload(); }
     else alert("Gagal: " + result.error);
@@ -77,7 +87,13 @@ export default function AdminDashboard() {
     setIsProcessing(true);
     const res = await fetch('/api/admin/update-staff', { 
         method: 'POST', 
-        body: JSON.stringify({ id: editingStaff.id, fullName: editingStaff.full_name, branchId: editingStaff.branch_id, role: editingStaff.role }) 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+            id: editingStaff.id, 
+            fullName: editingStaff.full_name, 
+            branchId: editingStaff.branch_id, 
+            role: editingStaff.role 
+        }) 
     });
     if (res.ok) { alert("Profil Staf Dikemaskini!"); setEditingStaff(null); fetchData(profile); }
     setIsProcessing(false);
@@ -97,9 +113,9 @@ export default function AdminDashboard() {
   };
 
   if (loading) return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-white text-slate-400">
-      <Loader2 className="animate-spin mb-4" size={40} />
-      <p className="font-black uppercase italic text-[10px] tracking-[4px]">Menghubungkan ke HQ...</p>
+    <div className="min-h-screen flex flex-col items-center justify-center bg-white">
+      <Loader2 className="animate-spin text-red-600 mb-4" size={40} />
+      <p className="font-black uppercase italic text-[10px] tracking-[4px] text-slate-400">Menyambung ke HQ...</p>
     </div>
   );
 
@@ -111,7 +127,7 @@ export default function AdminDashboard() {
         <div className="flex items-center gap-3 mb-10">
             <img src="/logo.png" className="h-10 rounded-full border shadow-sm" />
             <div className="leading-none">
-                <p className="font-black italic uppercase tracking-tighter">HAJI ALI</p>
+                <p className="font-black italic uppercase tracking-tighter leading-none">HAJI ALI</p>
                 <p className="text-[8px] font-black text-red-600 uppercase tracking-widest">{profile.role === 'master' ? 'Master HQ' : 'Outlet Staff'}</p>
             </div>
         </div>
@@ -138,45 +154,36 @@ export default function AdminDashboard() {
           )}
 
           <div className="pt-8 mt-8 border-t border-slate-50">
-              <button onClick={() => router.push('/admin/scan')} className="w-full flex items-center gap-3 p-4 text-slate-400 hover:text-red-600 font-bold text-sm transition-all">
+              <button onClick={() => router.push('/admin/scan')} className="w-full flex items-center gap-3 p-4 text-slate-400 hover:text-red-600 font-bold text-sm">
                 <QrCode size={18}/> Scan Tiket
               </button>
           </div>
         </nav>
 
         <div className="bg-slate-50 p-5 rounded-3xl mt-auto">
-            <p className="text-[10px] font-black text-slate-300 uppercase">{profile.full_name}</p>
-            <p className="text-[8px] font-bold text-red-500 uppercase italic mb-4">{profile.role === 'master' ? 'ALL ACCESS HQ' : profile.branches?.name}</p>
-            <button onClick={() => supabase.auth.signOut().then(() => router.push('/admin/login'))} className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 hover:text-red-600 underline">
-                <LogOut size={12}/> Log Keluar
+            <p className="text-[10px] font-black text-slate-400 uppercase truncate">{profile.full_name}</p>
+            <p className="text-[8px] font-bold text-red-500 uppercase italic mb-4">{profile.role === 'master' ? 'ALL ACCESS' : profile.branches?.name}</p>
+            <button onClick={handleLogout} className="text-[9px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 hover:text-red-600 underline transition-all">
+                <LogOut size={12}/> Log Keluar Dashboard
             </button>
         </div>
       </aside>
 
       {/* MAIN CONTENT */}
       <main className="flex-grow p-6 md:p-12 overflow-y-auto">
-        
-        <header className="mb-10">
-            <h1 className="text-3xl font-black text-slate-800 uppercase italic tracking-tighter">
-                {activeTab === 'bookings' && 'Log Tempahan'}
-                {activeTab === 'reports' && 'Analisis Laporan'}
-                {activeTab === 'branches' && 'Outlet Management'}
-                {activeTab === 'staff' && 'Kakitangan & Akses'}
-            </h1>
-        </header>
-
         <AnimatePresence mode="wait">
           
           {/* TAB: REPORTS */}
           {activeTab === 'reports' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+                <h1 className="text-3xl font-black text-slate-800 uppercase italic tracking-tighter mb-4">Analisis Laporan</h1>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100">
-                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest italic">Total Tempahan</p>
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest italic">Total Bookings</p>
                         <p className="text-4xl font-black text-slate-800 mt-2">{bookings.length}</p>
                     </div>
                     <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100 text-green-600">
-                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest italic text-slate-300">Selesai Check-in</p>
+                        <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest italic text-slate-300">Berjaya Check-in</p>
                         <p className="text-4xl font-black mt-2">{bookings.filter(b => b.status === 'checked_in').length}</p>
                     </div>
                     <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100 text-amber-500">
@@ -189,44 +196,46 @@ export default function AdminDashboard() {
 
           {/* TAB: BOOKINGS */}
           {activeTab === 'bookings' && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-x-auto">
-                <table className="w-full text-left min-w-[600px]">
-                    <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                        <tr>
-                            <th className="p-6">Pelanggan</th>
-                            <th className="p-6">Outlet</th>
-                            <th className="p-6">Status</th>
-                            <th className="p-6">Tindakan</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                        {bookings.map((b) => (
-                            <tr key={b.id} className="hover:bg-slate-50 transition-all">
-                                <td className="p-6">
-                                    <p className="font-bold uppercase text-sm text-slate-700 leading-none mb-1">{b.customer_name}</p>
-                                    <span className="text-[10px] text-slate-300 font-bold">+{b.customer_phone}</span>
-                                </td>
-                                <td className="p-6 text-xs font-black text-slate-400 uppercase italic">{b.branches?.name}</td>
-                                <td className="p-6">
-                                    <span className={`text-[9px] font-black uppercase px-4 py-1.5 rounded-full ${b.status === 'checked_in' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
-                                        {b.status}
-                                    </span>
-                                </td>
-                                <td className="p-6">
-                                    {b.status === 'confirmed' && (
-                                        <button onClick={() => handleCheckIn(b.id)} className="bg-slate-900 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase shadow-lg flex items-center gap-2 hover:bg-green-600 transition-all"><CheckCircle size={14}/> Check-in</button>
-                                    )}
-                                </td>
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+                <h1 className="text-3xl font-black text-slate-800 uppercase italic tracking-tighter mb-4">Log Tempahan</h1>
+                <div className="bg-white rounded-[40px] shadow-sm border border-slate-100 overflow-hidden">
+                    <table className="w-full text-left">
+                        <thead className="bg-slate-50 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                            <tr>
+                                <th className="p-6">Pelanggan</th>
+                                <th className="p-6">Outlet</th>
+                                <th className="p-6">Status</th>
+                                <th className="p-6">Tindakan</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-slate-50">
+                            {bookings.map((b) => (
+                                <tr key={b.id} className="hover:bg-slate-50 transition-all">
+                                    <td className="p-6 font-bold uppercase text-sm text-slate-700 leading-none mb-1">{b.customer_name} <br/> <span className="text-[10px] text-slate-300 font-bold">+{b.customer_phone}</span></td>
+                                    <td className="p-6 text-xs font-black text-slate-400 uppercase italic">{b.branches?.name}</td>
+                                    <td className="p-6">
+                                        <span className={`text-[9px] font-black uppercase px-4 py-1.5 rounded-full ${b.status === 'checked_in' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
+                                            {b.status}
+                                        </span>
+                                    </td>
+                                    <td className="p-6">
+                                        {b.status === 'confirmed' && (
+                                            <button onClick={() => handleCheckIn(b.id)} className="bg-slate-900 text-white px-5 py-2 rounded-xl text-[10px] font-black uppercase shadow-lg flex items-center gap-2 hover:bg-green-600 transition-all"><CheckCircle size={14}/> Check-in</button>
+                                        )}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </motion.div>
           )}
 
           {/* TAB: STAFF (MASTER ONLY) */}
           {activeTab === 'staff' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <h1 className="lg:col-span-3 text-3xl font-black text-slate-800 uppercase italic tracking-tighter mb-4">Pengurusan Staf</h1>
+                
                 {/* Form Tambah/Edit */}
                 <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100 space-y-6 h-fit">
                     <h3 className="font-black uppercase italic text-sm flex items-center gap-2 tracking-tight">
@@ -253,11 +262,11 @@ export default function AdminDashboard() {
                     </div>
                     {editingStaff ? (
                         <div className="flex gap-2">
-                            <button onClick={handleUpdateStaff} disabled={isProcessing} className="flex-grow bg-slate-900 text-white p-4 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl flex justify-center items-center gap-2"><Save size={14}/> Simpan Perubahan</button>
+                            <button onClick={handleUpdateStaff} disabled={isProcessing} className="flex-grow bg-slate-900 text-white p-4 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl flex justify-center items-center gap-2"><Save size={14}/> Simpan</button>
                             <button onClick={() => setEditingStaff(null)} className="bg-slate-100 p-4 rounded-2xl text-slate-400"><X size={14}/></button>
                         </div>
                     ) : (
-                        <button onClick={handleAddStaff} disabled={isProcessing} className="w-full bg-red-600 text-white p-5 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl">Daftarkan Staf</button>
+                        <button onClick={handleAddStaff} disabled={isProcessing} className="w-full bg-red-600 text-white p-4 rounded-2xl font-black uppercase tracking-widest text-[10px] shadow-xl">Daftarkan Staf</button>
                     )}
                 </div>
 
@@ -290,6 +299,7 @@ export default function AdminDashboard() {
           {/* TAB: BRANCHES (MASTER ONLY) */}
           {activeTab === 'branches' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <h1 className="lg:col-span-3 text-3xl font-black text-slate-800 uppercase italic tracking-tighter mb-4">Outlet Management</h1>
                 <div className="bg-white p-8 rounded-[40px] shadow-sm border border-slate-100 space-y-6 h-fit text-slate-800">
                     <h3 className="font-black uppercase italic text-sm flex items-center gap-2 tracking-tight">
                         <div className="bg-red-50 p-2 rounded-lg text-red-600"><Plus size={18}/></div> Tambah Outlet
@@ -304,7 +314,7 @@ export default function AdminDashboard() {
 
                 <div className="lg:col-span-2 space-y-4">
                     {branches.map(br => (
-                        <div key={br.id} className="bg-white p-6 rounded-[35px] shadow-sm border border-slate-50 flex justify-between items-center">
+                        <div key={br.id} className="bg-white p-6 rounded-[35px] shadow-sm border border-slate-50 flex justify-between items-center group">
                             <div className="flex items-center gap-5">
                                 <div className="bg-slate-50 p-5 rounded-2xl text-slate-300 group-hover:text-red-600 transition-colors"><Store/></div>
                                 <h4 className="font-black uppercase text-slate-800 tracking-tight text-sm">{br.name}</h4>
