@@ -144,7 +144,7 @@ export default function AdminDashboard() {
       <div className="w-full md:w-72 bg-white border-r p-8 space-y-10 shadow-sm z-20">
         <div className="flex items-center gap-3">
             <img src="/logo.png" className="h-10" />
-            <span className="font-black italic text-lg tracking-tighter uppercase">Haji Ali Panel</span>
+            <span className="font-black italic text-lg tracking-tighter uppercase">NAHA Panel</span>
         </div>
 
         <nav className="space-y-2">
